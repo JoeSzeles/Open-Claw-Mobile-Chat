@@ -93,7 +93,6 @@ echo "[3/3] Cleaning up backup directory..."
 rm -rf "$BACKUP_PATH"
 echo "  Removed $BACKUP_DIR/"
 
-find "$OPENCLAW_ROOT" -type d -empty -delete 2>/dev/null || true
 
 echo ""
 echo "════════════════════════════════════════════════════════"
