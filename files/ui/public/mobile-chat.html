@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>OpenClaw Mobile Chat</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#e6edf3;font-size:16px;-webkit-text-size-adjust:100%;touch-action:manipulation}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+.conn-bar{background:#161b22;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #21262d;flex-shrink:0;min-height:40px}
+.conn-bar .brand{font-size:16px;font-weight:700;color:#bc8cff}
+.conn-bar .status{display:flex;align-items:center;gap:8px}
+.status-dot{width:10px;height:10px;border-radius:50%;background:#484f58;transition:background .3s}
+.status-dot.ok{background:#3fb950;box-shadow:0 0 4px #3fb950}
+.status-dot.err{background:#f85149}
+.status-label{font-size:14px;color:#8b949e}
+.toolbar{display:flex;align-items:center;justify-content:space-around;padding:8px 4px;background:#161b22;border-bottom:1px solid #21262d;gap:2px;flex-shrink:0;flex-wrap:wrap}
+.tb-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 6px;border:none;background:transparent;color:#8b949e;font-size:14px;min-width:72px;min-height:64px;border-radius:10px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;user-select:none}
+.tb-btn svg{width:36px;height:36px}
+.tb-btn.active{color:#bc8cff;background:rgba(188,140,255,.1)}
+.tb-btn.active-green{color:#3fb950;background:rgba(63,185,80,.1)}
+.tb-btn.recording{color:#f85149;background:rgba(248,81,73,.15);animation:pulse 1.2s infinite}
+.tb-btn.speaking{color:#58a6ff;background:rgba(88,166,255,.1)}
+.tb-btn:active{transform:scale(.93)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 8px;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+.msg{margin-bottom:12px;max-width:92%;word-wrap:break-word;overflow-wrap:break-word}
+.msg.user{margin-left:auto;background:#1f3a5f;border-radius:16px 16px 4px 16px;padding:12px 16px;font-size:19px;line-height:1.5}
+.msg.assistant{margin-right:auto;background:#1a1a2e;border:1px solid #30363d;border-radius:16px 16px 16px 4px;padding:12px 16px;font-size:19px;line-height:1.5}
+.msg.assistant pre{background:#0d1117;padding:10px;border-radius:6px;overflow-x:auto;font-size:16px;margin:6px 0}
+.msg.assistant code{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:16px}
+.msg .ts{font-size:13px;color:#484f58;margin-top:4px}
+.msg-images{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chat-img{max-width:100%;max-height:300px;border-radius:8px;cursor:pointer;border:1px solid #30363d}
+.chat-img:hover{border-color:#58a6ff}
+.msg.system{text-align:center;color:#8b949e;font-size:16px;font-style:italic;max-width:100%}
+.stream-indicator{color:#58a6ff;font-size:18px;padding:4px 14px;animation:pulse 1.5s infinite}
+.compose{flex-shrink:0;background:#161b22;border-top:1px solid #30363d;padding:8px;padding-bottom:58px}
+.compose-row{display:flex;gap:6px;align-items:flex-end}
+.compose textarea{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:12px;color:#e6edf3;font-size:20px;padding:12px 16px;resize:none;min-height:52px;max-height:140px;line-height:1.4;font-family:inherit;outline:none}
+.compose textarea:focus{border-color:#58a6ff}
+.compose textarea::placeholder{color:#484f58}
+.action-row{display:flex;gap:8px;margin-top:8px;justify-content:flex-end;align-items:center}
+.action-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 24px;border:none;border-radius:12px;font-size:18px;font-weight:600;cursor:pointer;min-height:56px;min-width:100px;transition:all .15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.action-btn:active{transform:scale(.95)}
+.btn-new{background:#21262d;color:#e6edf3;border:1px solid #30363d}
+.btn-send{background:#238636;color:#fff}
+.btn-send:disabled{background:#1a3024;color:#3fb950;opacity:.5}
+.btn-stop{background:#da3633;color:#fff}
+.agent-select{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:12px;padding:10px 14px;font-size:16px;min-height:56px;font-family:inherit;outline:none;max-width:160px}
+.voice-settings{position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:20px}
+.voice-settings.open{display:flex}
+.vs-panel{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:20px;width:100%;max-width:380px;max-height:80vh;overflow-y:auto}
+.vs-panel h3{color:#bc8cff;font-size:18px;margin-bottom:16px}
+.vs-row{margin-bottom:16px}
+.vs-row label{display:block;font-size:14px;color:#8b949e;margin-bottom:6px}
+.vs-row select,.vs-row input[type=range]{width:100%;min-height:44px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:14px;padding:0 10px}
+.vs-row input[type=range]{padding:0;accent-color:#bc8cff;cursor:pointer}
+.vs-row .range-val{font-size:13px;color:#58a6ff;font-weight:600}
+.vs-close{width:100%;padding:12px;border:none;border-radius:10px;background:#238636;color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;min-height:44px}
+.car-help{position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:rgba(0,0,0,.85);display:none;align-items:flex-start;justify-content:center;padding:10px;overflow-y:auto}
+.car-help.open{display:flex}
+.car-panel{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:16px;width:100%;max-width:400px;margin-top:20px}
+.car-panel h3{color:#bc8cff;font-size:18px;margin-bottom:12px;text-align:center}
+.car-diagram{background:#0d1117;border-radius:12px;padding:16px;margin-bottom:16px}
+.car-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #21262d;font-size:14px}
+.car-row:last-child{border-bottom:none}
+.car-icon{font-size:20px;min-width:30px;text-align:center}
+.car-label{font-weight:600;color:#58a6ff;min-width:80px}
+.car-desc{color:#8b949e;font-size:13px}
+.car-close{width:100%;padding:12px;border:none;border-radius:10px;background:#21262d;color:#e6edf3;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;min-height:44px}
+.phone-caps{position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:rgba(0,0,0,.85);display:none;align-items:flex-start;justify-content:center;padding:10px;overflow-y:auto}
+.phone-caps.open{display:flex}
+.pc-panel{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:16px;width:100%;max-width:400px;margin-top:20px}
+.pc-panel h3{color:#bc8cff;font-size:18px;margin-bottom:12px}
+.pc-item{background:#0d1117;border-radius:10px;padding:12px;margin-bottom:10px}
+.pc-item h4{color:#58a6ff;font-size:15px;margin-bottom:6px}
+.pc-item p{color:#8b949e;font-size:13px;line-height:1.4}
+.pc-btn{display:block;width:100%;padding:10px;border:1px solid #30363d;border-radius:8px;background:#21262d;color:#e6edf3;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;min-height:44px;text-align:center}
+.pc-btn.granted{border-color:#238636;color:#3fb950}
+.pc-close{width:100%;padding:12px;border:none;border-radius:10px;background:#21262d;color:#e6edf3;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;min-height:44px}
+.hf-banner{display:none;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);color:#3fb950;text-align:center;padding:8px;font-size:13px;font-weight:600;flex-shrink:0}
+.hf-banner.active{display:block}
+.empty-chat{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#484f58;text-align:center;padding:20px}
+.empty-chat .logo{font-size:48px;margin-bottom:12px}
+.empty-chat p{font-size:15px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="conn-bar">
+    <span class="brand">OPENCLAW Mobile</span>
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-label" id="statusLabel">Connecting...</span>
+      <a href="/index.html" style="color:#8b949e;font-size:11px;text-decoration:none;padding:3px 8px;border:1px solid #30363d;border-radius:6px;margin-left:4px">Desktop</a>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tb-btn" id="btnUpload" title="Upload file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+      <span>Upload</span>
+    </button>
+    <button class="tb-btn" id="btnMic" title="Voice input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      <span>Mic</span>
+    </button>
+    <button class="tb-btn" id="btnSpeaker" title="Voice output">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+      <span>Speaker</span>
+    </button>
+    <button class="tb-btn" id="btnHandsFree" title="Hands-free mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/></svg>
+      <span>Drive</span>
+    </button>
+    <button class="tb-btn" id="btnVoiceSettings" title="Voice settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span>Voice</span>
+    </button>
+    <button class="tb-btn" id="btnCar" title="Car Bluetooth help">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2" ry="2"/><polygon points="16 8 20 4 20 15 16 11 16 8"/></svg>
+      <span>Car</span>
+    </button>
+    <button class="tb-btn" id="btnPhone" title="Phone capabilities">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <span>Phone</span>
+    </button>
+  </div>
+
+  <div class="hf-banner" id="hfBanner">HANDS-FREE — Listening...</div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="compose">
+    <div class="compose-row">
+      <textarea id="chatInput" rows="1" placeholder="Message the agent..." enterkeyhint="send"></textarea>
+    </div>
+    <div class="action-row">
+      <button class="action-btn btn-new" id="btnNew">+ New</button>
+      <select class="agent-select" id="agentSelect">
+        <option value="agent:ceo:main">agent:ceo:main</option>
+      </select>
+      <button class="action-btn btn-send" id="btnSend">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="voice-settings" id="voiceSettings">
+  <div class="vs-panel">
+    <h3>Voice Settings</h3>
+    <div class="vs-row">
+      <label>Voice</label>
+      <select id="voiceSelect"></select>
+    </div>
+    <div class="vs-row">
+      <label>Speed: <span class="range-val" id="speedVal">1.3x</span></label>
+      <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.3">
+    </div>
+    <div class="vs-row">
+      <label>Pitch: <span class="range-val" id="pitchVal">1.0</span></label>
+      <input type="range" id="pitchSlider" min="0.5" max="1.5" step="0.1" value="1.0">
+    </div>
+    <div class="vs-row">
+      <label>Audio Output</label>
+      <select id="audioOutputSelect"></select>
+      <span style="font-size:12px;color:#484f58;margin-top:4px;display:block">If voice plays on both phone + Bluetooth, select your Bluetooth device here</span>
+    </div>
+    <div class="vs-row">
+      <label>Test</label>
+      <button class="pc-btn" id="btnTestVoice" style="margin-top:0">Speak test sentence</button>
+    </div>
+    <button class="vs-close" id="btnCloseVoice">Done</button>
+  </div>
+</div>
+
+<div class="car-help" id="carHelp">
+  <div class="car-panel">
+    <h3>Car Bluetooth Setup</h3>
+    <p style="color:#8b949e;font-size:14px;margin-bottom:12px;text-align:center">Your car radio controls are mapped to agent functions via Bluetooth</p>
+    <div style="text-align:center;margin-bottom:16px"><img src="/car-radio.jpg" alt="Car radio" style="width:100%;max-width:380px;border-radius:12px;border:1px solid #30363d"></div>
+    <h4 style="color:#58a6ff;font-size:16px;margin-bottom:10px">Button Mapping</h4>
+    <div class="car-diagram">
+      <div class="car-row"><span class="car-icon">&#9654;&#10074;&#10074;</span><span class="car-label">Play / Pause</span><span class="car-desc">Toggle hands-free driving mode on/off</span></div>
+      <div class="car-row"><span class="car-icon">&#9654;&#9654;</span><span class="car-label">SEEK ^ (next)</span><span class="car-desc">Send current message to the agent</span></div>
+      <div class="car-row"><span class="car-icon">&#9664;&#9664;</span><span class="car-label">SEEK V (prev)</span><span class="car-desc">Toggle microphone on/off</span></div>
+      <div class="car-row"><span class="car-icon">&#8649;</span><span class="car-label">Long ^ (seek fwd)</span><span class="car-desc">Repeat last agent response</span></div>
+      <div class="car-row"><span class="car-icon">&#8647;</span><span class="car-label">Long V (seek back)</span><span class="car-desc">Stop agent speaking (cancel TTS)</span></div>
+      <div class="car-row"><span class="car-icon">&#9632;</span><span class="car-label">Stop</span><span class="car-desc">Stop agent speaking (cancel TTS)</span></div>
+    </div>
+    <h4 style="color:#58a6ff;font-size:16px;margin:12px 0 10px">TITLE / DISP Screen</h4>
+    <div class="car-diagram">
+      <div class="car-row"><span class="car-icon">&#128196;</span><span class="car-label">Title line</span><span class="car-desc">Shows current status: Listening / Waiting / Speaking / last message preview</span></div>
+      <div class="car-row"><span class="car-icon">&#127925;</span><span class="car-label">Artist line</span><span class="car-desc">Shows "OpenClaw Agent" + connection status</span></div>
+    </div>
+    <h4 style="color:#e6edf3;font-size:16px;margin:12px 0 8px">Quick Start</h4>
+    <ol style="color:#8b949e;font-size:14px;line-height:1.7;padding-left:20px;margin-bottom:12px">
+      <li>Pair phone to car via Bluetooth</li>
+      <li>Open this Mobile Chat page in Chrome</li>
+      <li>Tap <b style="color:#3fb950">Drive</b> or press <b>Play</b> on radio to start hands-free</li>
+      <li>Speak naturally — 2 second pause sends your message</li>
+      <li>Agent responds through car speakers, mic stays off while speaking</li>
+      <li>Radio display shows what's happening: listening, waiting, speaking</li>
+      <li>Press <b>Next</b> to send message, <b>Prev</b> to toggle mic</li>
+    </ol>
+    <button class="car-close" onclick="document.getElementById('carHelp').classList.remove('open')">Close</button>
+  </div>
+</div>
+
+<div class="phone-caps" id="phoneCaps">
+  <div class="pc-panel">
+    <h3>Phone Capabilities</h3>
+    <p style="color:#8b949e;font-size:13px;margin-bottom:12px">Grant permissions so the agent can use your phone's hardware when needed.</p>
+    <div class="pc-item">
+      <h4>GPS Location</h4>
+      <p>Share your current location with the agent. Useful for local market data, weather, or navigation context.</p>
+      <button class="pc-btn" id="btnGPS" onclick="requestGPS()">Grant GPS Access</button>
+    </div>
+    <div class="pc-item">
+      <h4>Camera</h4>
+      <p>Take a photo and send it to the agent. Useful for sharing charts, documents, or anything visual.</p>
+      <button class="pc-btn" id="btnCamera" onclick="requestCamera()">Open Camera</button>
+    </div>
+    <div class="pc-item">
+      <h4>SMS</h4>
+      <p>Compose an SMS message. The agent can suggest text and recipients but you always confirm before sending.</p>
+      <button class="pc-btn" id="btnSMS" onclick="requestSMS()">Compose SMS</button>
+    </div>
+    <button class="pc-close" onclick="document.getElementById('phoneCaps').classList.remove('open')">Close</button>
+  </div>
+</div>
+
+<input type="file" id="fileInput" style="display:none" accept="image/*,application/pdf,.txt,.csv,.json">
+<input type="file" id="cameraInput" style="display:none" accept="image/*" capture="environment">
+
+<script>
+(function() {
+  'use strict';
+
+  var LS_SETTINGS = 'oc-mobile-chat-settings';
+  var LS_TOKEN = 'openclaw.control.settings.v1';
+  var state = {
+    ws: null,
+    connected: false,
+    sessionKey: 'agent:ceo:webchat:main',
+    messages: [],
+    stream: null,
+    runId: null,
+    sending: false,
+    pendingRequests: {},
+    connectSent: false,
+    lastSeq: null,
+    reconnectTimer: null,
+    backoffMs: 800,
+    listening: false,
+    speakerOn: false,
+    handsFree: false,
+    selectedVoice: null,
+    voiceSpeed: 1.3,
+    voicePitch: 1.0,
+    recognition: null,
+    audioCtx: null,
+    audioOutputId: '',
+    gpsGranted: false
+  };
+
+  function loadSettings() {
+    try {
+      var s = JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}');
+      if (s.voiceSpeed) state.voiceSpeed = s.voiceSpeed;
+      if (s.voicePitch) state.voicePitch = s.voicePitch;
+      if (s.selectedVoice) state.selectedVoice = s.selectedVoice;
+      if (s.audioOutputId) state.audioOutputId = s.audioOutputId;
+      if (s.speakerOn) state.speakerOn = true;
+      if (s.sessionKey) state.sessionKey = s.sessionKey;
+    } catch(e) {}
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem(LS_SETTINGS, JSON.stringify({
+        voiceSpeed: state.voiceSpeed,
+        voicePitch: state.voicePitch,
+        selectedVoice: state.selectedVoice,
+        audioOutputId: state.audioOutputId,
+        speakerOn: state.speakerOn,
+        sessionKey: state.sessionKey
+      }));
+    } catch(e) {}
+  }
+
+  function getToken() {
+    try {
+      var s = localStorage.getItem(LS_TOKEN);
+      if (s) { var o = JSON.parse(s); return o.token || ''; }
+    } catch(e) {}
+    try { var m = document.cookie.match(/openclaw_token=([^;]+)/); if (m) return m[1]; } catch(e) {}
+    return '';
+  }
+
+  function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16);
+    });
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatMarkdown(text) {
+    if (!text) return '';
+    var h = escHtml(text);
+    h = h.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
+      return '<pre><code>' + code.trim() + '</code></pre>';
+    });
+    h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+    h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    h = h.replace(/\n/g, '<br>');
+    return h;
+  }
+
+  function extractText(msg) {
+    if (!msg) return '';
+    if (typeof msg === 'string') return msg;
+    if (Array.isArray(msg.content)) {
+      var parts = [];
+      for (var i = 0; i < msg.content.length; i++) {
+        var b = msg.content[i];
+        if (b && b.type === 'text' && b.text) parts.push(b.text);
+      }
+      return parts.join('\n');
+    }
+    if (typeof msg.content === 'string') return msg.content;
+    return '';
+  }
+
+  function extractImages(msg) {
+    var imgs = [];
+    if (!msg || !Array.isArray(msg.content)) return imgs;
+    for (var i = 0; i < msg.content.length; i++) {
+      var b = msg.content[i];
+      if (b && b.type === 'image' && b.source && b.source.data) {
+        var mt = b.source.media_type || 'image/png';
+        imgs.push('data:' + mt + ';base64,' + b.source.data);
+      } else if (b && b.type === 'image_url' && b.image_url && b.image_url.url) {
+        imgs.push(b.image_url.url);
+      } else if (b && b.type === 'image' && b.url) {
+        imgs.push(b.url);
+      }
+    }
+    return imgs;
+  }
+
+  function setStatus(ok, label) {
+    var dot = document.getElementById('statusDot');
+    var lbl = document.getElementById('statusLabel');
+    dot.className = 'status-dot ' + (ok ? 'ok' : 'err');
+    lbl.textContent = label;
+  }
+
+  function gwConnect() {
+    if (state.ws) { try { state.ws.close(); } catch(e) {} }
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = proto + '//' + location.host + '/';
+    setStatus(false, 'Connecting...');
+    var ws = new WebSocket(url);
+    state.ws = ws;
+
+    ws.onopen = function() {
+      state.connectSent = false;
+      setTimeout(function() { sendConnectFrame(); }, 750);
+    };
+
+    ws.onmessage = function(ev) {
+      handleGwMessage(String(ev.data || ''));
+    };
+
+    ws.onclose = function(ev) {
+      state.connected = false;
+      state.ws = null;
+      setStatus(false, 'Disconnected');
+      flushPending(new Error('closed'));
+      scheduleReconnect();
+    };
+
+    ws.onerror = function() {};
+  }
+
+  function scheduleReconnect() {
+    if (state.reconnectTimer) return;
+    var delay = state.backoffMs;
+    state.backoffMs = Math.min(state.backoffMs * 1.7, 15000);
+    state.reconnectTimer = setTimeout(function() {
+      state.reconnectTimer = null;
+      gwConnect();
+    }, delay);
+  }
+
+  function sendConnectFrame() {
+    if (state.connectSent) return;
+    state.connectSent = true;
+    var token = getToken();
+    var params = {
+      minProtocol: 3,
+      maxProtocol: 3,
+      client: {
+        id: 'openclaw-control-ui',
+        version: 'mobile-dev',
+        platform: navigator.platform || 'mobile',
+        mode: 'webchat'
+      },
+      role: 'operator',
+      scopes: ['operator.admin'],
+      caps: [],
+      auth: token ? { token: token } : undefined,
+      userAgent: navigator.userAgent,
+      locale: navigator.language
+    };
+    gwRequest('connect', params).then(function(hello) {
+      state.connected = true;
+      state.backoffMs = 800;
+      setStatus(true, 'Connected');
+      loadSessionList().then(function() { loadHistory(); });
+    }).catch(function(e) {
+      setStatus(false, 'Auth failed');
+    });
+  }
+
+  function loadSessionList() {
+    return gwRequest('sessions.list', {}).then(function(res) {
+      var sessions = res && res.sessions ? res.sessions : (Array.isArray(res) ? res : []);
+      var select = document.getElementById('agentSelect');
+      var currentVal = state.sessionKey;
+      select.innerHTML = '';
+      var seen = {};
+      for (var i = 0; i < sessions.length; i++) {
+        var s = sessions[i];
+        var key = s.sessionKey || s.key || s.id || '';
+        if (!key || seen[key]) continue;
+        seen[key] = true;
+        var label = s.label || s.agentId || key;
+        var opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = label;
+        select.appendChild(opt);
+      }
+      if (select.options.length === 0) {
+        var opt = document.createElement('option');
+        opt.value = 'agent:ceo:webchat:main';
+        opt.textContent = 'CEO (default)';
+        select.appendChild(opt);
+      }
+      var found = false;
+      for (var j = 0; j < select.options.length; j++) {
+        if (select.options[j].value === currentVal) { found = true; break; }
+      }
+      if (found) select.value = currentVal;
+      else {
+        select.selectedIndex = 0;
+        state.sessionKey = select.value;
+      }
+      console.log('[mobile-chat] loaded ' + sessions.length + ' sessions');
+    }).catch(function(e) {
+      console.warn('[mobile-chat] sessions.list failed:', e.message);
+    });
+  }
+
+  function gwRequest(method, params) {
+    return new Promise(function(resolve, reject) {
+      if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        return reject(new Error('not connected'));
+      }
+      var id = uuid();
+      state.pendingRequests[id] = { resolve: resolve, reject: reject };
+      state.ws.send(JSON.stringify({ type: 'req', id: id, method: method, params: params }));
+    });
+  }
+
+  function flushPending(err) {
+    var keys = Object.keys(state.pendingRequests);
+    for (var i = 0; i < keys.length; i++) {
+      state.pendingRequests[keys[i]].reject(err);
+    }
+    state.pendingRequests = {};
+  }
+
+  function handleGwMessage(raw) {
+    var parsed;
+    try { parsed = JSON.parse(raw); } catch(e) { return; }
+
+    console.log('[mobile-chat] ws msg:', parsed.type, parsed.event || parsed.method || '', parsed.id ? parsed.id.slice(0,8) : '');
+
+    if (parsed.type === 'event') {
+      if (parsed.event === 'connect.challenge') {
+        state.connectSent = false;
+        setTimeout(function() { sendConnectFrame(); }, 100);
+        return;
+      }
+      if (parsed.event === 'chat') {
+        handleChatEvent(parsed.payload);
+      }
+      return;
+    }
+
+    if (parsed.type === 'res') {
+      var p = state.pendingRequests[parsed.id];
+      if (p) {
+        delete state.pendingRequests[parsed.id];
+        if (parsed.ok) p.resolve(parsed.payload);
+        else p.reject(new Error(parsed.error ? parsed.error.message : 'request failed'));
+      }
+      if (parsed.method === 'chat.send' || (parsed.id && parsed.id.indexOf('chat') !== -1)) {
+        console.log('[mobile-chat] chat.send response:', parsed.ok, JSON.stringify(parsed.payload || parsed.error || {}).slice(0, 200));
+      }
+    }
+  }
+
+  function handleChatEvent(payload) {
+    console.log('[mobile-chat] chat event:', payload && payload.state, 'sk:', payload && payload.sessionKey, 'rid:', payload && payload.runId, 'mysk:', state.sessionKey, 'myrid:', state.runId);
+    if (!payload || payload.sessionKey !== state.sessionKey) return;
+    if (payload.runId && state.runId && payload.runId !== state.runId) {
+      if (payload.state === 'final') loadHistory();
+      return;
+    }
+
+    if (payload.state === 'delta') {
+      var next = extractText(payload.message);
+      if (typeof next === 'string') {
+        var current = state.stream || '';
+        if (!current || next.length >= current.length) {
+          state.stream = next;
+          renderStream();
+        }
+      }
+    } else if (payload.state === 'final') {
+      var finalText = extractText(payload.message);
+      state.stream = null;
+      state.runId = null;
+      state.sending = false;
+      loadHistory();
+      updateSendButton();
+      if (finalText && finalText.trim()) {
+        _lastAgentText = finalText;
+        var preview = finalText.replace(/\s+/g, ' ').trim();
+        if (preview.length > 60) preview = preview.slice(0, 57) + '...';
+        if (typeof updateMediaMetadata === 'function') updateMediaMetadata(preview, 'OpenClaw Agent');
+        speakText(finalText);
+      } else if (state.handsFree) {
+        hfSetPhase('listening');
+        setTimeout(function() { startListening(); }, 500);
+      }
+    } else if (payload.state === 'aborted' || payload.state === 'error') {
+      if (payload.state === 'aborted' && state.stream && state.stream.trim()) {
+        state.messages.push({ role: 'assistant', content: [{ type: 'text', text: state.stream }], timestamp: Date.now() });
+      }
+      state.stream = null;
+      state.runId = null;
+      state.sending = false;
+      renderMessages();
+      updateSendButton();
+      if (payload.state === 'error') {
+        addSystemMessage('Error: ' + (payload.errorMessage || 'unknown'));
+      }
+      if (state.handsFree) {
+        hfSetPhase('listening');
+        setTimeout(function() { startListening(); }, 500);
+      }
+    }
+  }
+
+  function loadHistory() {
+    if (!state.connected) return;
+    gwRequest('chat.history', { sessionKey: state.sessionKey, limit: 200 }).then(function(res) {
+      state.messages = Array.isArray(res.messages) ? res.messages : [];
+      renderMessages();
+    }).catch(function() {});
+  }
+
+  function sendMessage(text) {
+    if (!state.connected || state.sending) return;
+    var msg = (text || '').trim();
+    var hasImage = !!state.pendingImage;
+    if (!msg && !hasImage) return;
+    if (!msg && hasImage) msg = 'Analyze this image.';
+
+    var contentBlocks = [{ type: 'text', text: msg }];
+    if (hasImage) {
+      var parts = state.pendingImage.split(',');
+      var mimeMatch = state.pendingImage.match(/^data:([^;]+);/);
+      var mime = mimeMatch ? mimeMatch[1] : 'image/png';
+      contentBlocks.push({
+        type: 'image_url',
+        image_url: { url: state.pendingImage }
+      });
+    }
+    state.messages.push({ role: 'user', content: contentBlocks, timestamp: Date.now() });
+    renderMessages();
+
+    state.sending = true;
+    state.runId = uuid();
+    state.stream = '';
+    updateSendButton();
+
+    var sendPayload = {
+      sessionKey: state.sessionKey,
+      message: msg,
+      deliver: false,
+      idempotencyKey: state.runId
+    };
+    if (hasImage) {
+      sendPayload.attachments = [{ type: 'image', data: state.pendingImage }];
+    }
+
+    gwRequest('chat.send', sendPayload).catch(function(e) {
+      state.sending = false;
+      state.runId = null;
+      state.stream = null;
+      addSystemMessage('Send failed: ' + e.message);
+      updateSendButton();
+    });
+
+    state.pendingImage = null;
+    var input = document.getElementById('chatInput');
+    input.value = '';
+    input.placeholder = 'Message the agent...';
+    input.style.borderColor = '';
+    autoResize();
+  }
+
+  function abortRun() {
+    if (!state.connected) return;
+    gwRequest('chat.abort', { sessionKey: state.sessionKey, runId: state.runId }).catch(function() {});
+  }
+
+  function newSession() {
+    var key = 'agent:ceo:webchat:' + uuid().slice(0, 8);
+    state.sessionKey = key;
+    state.messages = [];
+    state.stream = null;
+    state.runId = null;
+    state.sending = false;
+    saveSettings();
+    renderMessages();
+    updateSendButton();
+    if (state.connected) {
+      loadSessionList();
+      loadHistory();
+    }
+  }
+
+  function renderImageHtml(imgs) {
+    if (!imgs || imgs.length === 0) return '';
+    var h = '<div class="msg-images">';
+    for (var i = 0; i < imgs.length; i++) {
+      h += '<a href="' + imgs[i] + '" target="_blank" download><img src="' + imgs[i] + '" class="chat-img" alt="Image"></a>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function extractMarkdownImages(text) {
+    var imgHtml = '';
+    var cleaned = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, src) {
+      imgHtml += '<a href="' + src + '" target="_blank" download><img src="' + src + '" class="chat-img" alt="' + (alt || 'Image') + '"></a>';
+      return '';
+    });
+    if (imgHtml) imgHtml = '<div class="msg-images">' + imgHtml + '</div>';
+    return { text: cleaned.trim(), imgHtml: imgHtml };
+  }
+
+  function renderMessages() {
+    var el = document.getElementById('messages');
+    if (state.messages.length === 0 && !state.stream) {
+      el.innerHTML = '<div class="empty-chat"><div class="logo">&#129438;</div><p>OpenClaw Mobile Chat<br>Tap the mic or type a message to start</p></div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < state.messages.length; i++) {
+      var m = state.messages[i];
+      var role = m.role || 'system';
+      var text = extractText(m);
+      var imgs = extractImages(m);
+      if (!text && !imgs.length && role !== 'system') continue;
+      var ts = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
+      var mdImgs = text ? extractMarkdownImages(text) : { text: text, imgHtml: '' };
+      var displayText = mdImgs.text;
+      var imgBlock = renderImageHtml(imgs) + mdImgs.imgHtml;
+      if (role === 'user') {
+        html += '<div class="msg user">' + (displayText ? formatMarkdown(displayText) : '') + imgBlock + (ts ? '<div class="ts">' + ts + '</div>' : '') + '</div>';
+      } else if (role === 'assistant') {
+        html += '<div class="msg assistant">' + (displayText ? formatMarkdown(displayText) : '') + imgBlock + (ts ? '<div class="ts">' + ts + '</div>' : '') + '</div>';
+      }
+    }
+    if (state.stream !== null) {
+      html += '<div class="msg assistant">' + formatMarkdown(state.stream) + '<div class="stream-indicator">typing...</div></div>';
+    }
+    el.innerHTML = html;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function renderStream() {
+    var el = document.getElementById('messages');
+    var existing = el.querySelectorAll('.msg');
+    var lastMsg = existing.length > 0 ? existing[existing.length - 1] : null;
+    if (lastMsg && lastMsg.querySelector('.stream-indicator')) {
+      lastMsg.innerHTML = formatMarkdown(state.stream || '') + '<div class="stream-indicator">typing...</div>';
+    } else {
+      renderMessages();
+    }
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function addSystemMessage(text) {
+    var el = document.getElementById('messages');
+    var div = document.createElement('div');
+    div.className = 'msg system';
+    div.textContent = text;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function updateSendButton() {
+    var btn = document.getElementById('btnSend');
+    if (state.sending) {
+      btn.textContent = 'Stop';
+      btn.className = 'action-btn btn-stop';
+      btn.disabled = false;
+    } else {
+      btn.textContent = 'Send';
+      btn.className = 'action-btn btn-send';
+      btn.disabled = false;
+    }
+  }
+
+  var SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  var _pendingTranscript = '';
+  var _lastAgentText = '';
+  var _silentAudio = null;
+  var _processedUpTo = 0;
+  var _ttsSpeaking = false;
+  var _hfPhase = 'idle';
+  var _hfSilenceTimer = null;
+  var _hfLastResultTime = 0;
+  var HF_SILENCE_MS = 2200;
+
+  function hfSetPhase(p) {
+    _hfPhase = p;
+    console.log('[hands-free] phase:', p);
+    var banner = document.getElementById('hfBanner');
+    if (!state.handsFree) return;
+    var label = '';
+    if (p === 'listening') { label = 'Listening...'; banner.textContent = 'HANDS-FREE — ' + label; }
+    else if (p === 'waiting') { label = 'Waiting for agent...'; banner.textContent = 'HANDS-FREE — ' + label; }
+    else if (p === 'speaking') { label = 'Agent speaking...'; banner.textContent = 'HANDS-FREE — ' + label; }
+    else if (p === 'cooldown') { label = 'Ready...'; banner.textContent = 'HANDS-FREE — ' + label; }
+    if (typeof updateMediaMetadata === 'function') updateMediaMetadata(label, 'OpenClaw Agent');
+    if (typeof updateMediaPlaybackState === 'function') {
+      updateMediaPlaybackState(p === 'idle' ? 'none' : 'playing');
+    }
+  }
+
+  var _restartTimer = null;
+  var _restartCount = 0;
+  var _restartWindowStart = 0;
+  var MAX_RESTARTS_PER_WINDOW = 5;
+  var RESTART_WINDOW_MS = 10000;
+
+  function scheduleRestart(delayMs) {
+    if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+    var now = Date.now();
+    if (now - _restartWindowStart > RESTART_WINDOW_MS) {
+      _restartCount = 0;
+      _restartWindowStart = now;
+    }
+    _restartCount++;
+    if (_restartCount > MAX_RESTARTS_PER_WINDOW) {
+      console.warn('[hands-free] too many restarts (' + _restartCount + ' in ' + RESTART_WINDOW_MS + 'ms), backing off 5s');
+      _restartTimer = setTimeout(function() {
+        _restartTimer = null;
+        _restartCount = 0;
+        _restartWindowStart = Date.now();
+        if (state.handsFree && _hfPhase === 'listening') startListening();
+      }, 5000);
+      return;
+    }
+    console.log('[hands-free] scheduling restart in ' + delayMs + 'ms (count=' + _restartCount + ')');
+    _restartTimer = setTimeout(function() {
+      _restartTimer = null;
+      if (state.handsFree && _hfPhase === 'listening') startListening();
+    }, delayMs);
+  }
+
+  function initRecognition() {
+    if (!SpeechRecognitionCtor) return;
+    if (state.recognition) {
+      try { state.recognition.abort(); } catch(e) {}
+      state.recognition = null;
+    }
+    var rec = new SpeechRecognitionCtor();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    rec.onresult = function(ev) {
+      if (_ttsSpeaking || _hfPhase === 'waiting' || _hfPhase === 'speaking') return;
+      var full = '';
+      for (var i = 0; i < ev.results.length; i++) {
+        full += (ev.results[i][0] && ev.results[i][0].transcript) || '';
+      }
+      _pendingTranscript = full.trim();
+      _hfLastResultTime = Date.now();
+      _restartCount = 0;
+      var input = document.getElementById('chatInput');
+      input.value = _pendingTranscript;
+      autoResize();
+      if (state.handsFree) {
+        if (_hfSilenceTimer) clearTimeout(_hfSilenceTimer);
+        var hasFinal = false;
+        for (var j = 0; j < ev.results.length; j++) {
+          if (ev.results[j].isFinal) hasFinal = true;
+        }
+        if (hasFinal && _pendingTranscript) {
+          _hfSilenceTimer = setTimeout(function() {
+            hfCommitAndSend();
+          }, HF_SILENCE_MS);
+        }
+      }
+    };
+    rec.onend = function() {
+      console.log('[hands-free] rec.onend, listening=' + state.listening + ' phase=' + _hfPhase + ' hf=' + state.handsFree);
+      var wasListening = state.listening;
+      state.listening = false;
+      updateMicButton();
+      if (_ttsSpeaking || _hfPhase === 'waiting' || _hfPhase === 'speaking') {
+        _pendingTranscript = '';
+        _processedUpTo = 0;
+        return;
+      }
+      if (_pendingTranscript && !state.handsFree) {
+        var input = document.getElementById('chatInput');
+        input.value = _pendingTranscript;
+        autoResize();
+      } else if (_pendingTranscript && state.handsFree) {
+        hfCommitAndSend();
+        return;
+      }
+      _pendingTranscript = '';
+      _processedUpTo = 0;
+      if (wasListening && state.handsFree && _hfPhase === 'listening') {
+        scheduleRestart(800);
+      }
+    };
+    rec.onerror = function(ev) {
+      console.log('[hands-free] rec.onerror:', ev.error, 'phase=' + _hfPhase);
+      if (ev.error === 'aborted') return;
+      if (ev.error === 'no-speech') {
+        if (state.handsFree && _hfPhase === 'listening') {
+          scheduleRestart(1500);
+        }
+        return;
+      }
+      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+        console.error('[hands-free] mic permission denied');
+        addSystemMessage('Microphone permission denied. Please allow mic access.');
+        state.listening = false;
+        updateMicButton();
+        return;
+      }
+      state.listening = false;
+      updateMicButton();
+      if (state.handsFree && _hfPhase === 'listening') {
+        scheduleRestart(2000);
+      }
+    };
+    state.recognition = rec;
+  }
+
+  function hfCommitAndSend() {
+    if (_hfSilenceTimer) { clearTimeout(_hfSilenceTimer); _hfSilenceTimer = null; }
+    var msg = _pendingTranscript;
+    _pendingTranscript = '';
+    _processedUpTo = 0;
+    if (!msg) return;
+    if (state.listening) {
+      try { state.recognition.stop(); } catch(e) {}
+      state.listening = false;
+      updateMicButton();
+    }
+    hfSetPhase('waiting');
+    document.getElementById('chatInput').value = '';
+    autoResize();
+    sendMessage(msg);
+  }
+
+  function startListening() {
+    if (!state.recognition) {
+      addSystemMessage('Speech recognition not supported on this browser');
+      return;
+    }
+    try {
+      state.recognition.start();
+      state.listening = true;
+      updateMicButton();
+    } catch(e) {
+      if (e.message && e.message.indexOf('already started') !== -1) {
+        state.listening = true;
+        updateMicButton();
+      }
+    }
+  }
+
+  function stopListening() {
+    if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+    if (state.recognition) {
+      try { state.recognition.stop(); } catch(e) {}
+    }
+    state.listening = false;
+    updateMicButton();
+  }
+
+  function toggleListening() {
+    if (state.listening) stopListening();
+    else startListening();
+  }
+
+  function updateMicButton() {
+    var btn = document.getElementById('btnMic');
+    btn.className = 'tb-btn' + (state.listening ? ' recording' : '');
+  }
+
+  function updateSpeakerButton() {
+    var btn = document.getElementById('btnSpeaker');
+    btn.className = 'tb-btn' + (state.speakerOn ? ' active' : '');
+  }
+
+  function toggleSpeaker() {
+    state.speakerOn = !state.speakerOn;
+    updateSpeakerButton();
+    saveSettings();
+    if (!state.speakerOn && window.speechSynthesis && speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+    }
+  }
+
+  function speakText(text) {
+    if (!state.speakerOn || !window.speechSynthesis) return;
+    if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+    speechSynthesis.cancel();
+    var clean = text
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`]+`/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/---[\s\S]*?(?=\n[A-Z]|$)/g, '')
+      .replace(/\[Trained Personality\][\s\S]*/g, '')
+      .replace(/\[Subconscious Memory\][\s\S]*/g, '')
+      .replace(/\[Brain Fingerprint\][\s\S]*/g, '')
+      .replace(/[#*_~>|]/g, '')
+      .replace(/\n+/g, '. ')
+      .trim();
+    if (!clean) return;
+    if (clean.length > 2000) clean = clean.slice(0, 2000) + '...';
+    _ttsSpeaking = true;
+    _pendingTranscript = '';
+    if (state.handsFree) hfSetPhase('speaking');
+    if (state.listening) {
+      try { state.recognition.stop(); } catch(e) {}
+      state.listening = false;
+      updateMicButton();
+    }
+    var utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = state.voiceSpeed;
+    utterance.pitch = state.voicePitch;
+    if (state.selectedVoice) {
+      var voices = speechSynthesis.getVoices();
+      for (var i = 0; i < voices.length; i++) {
+        if (voices[i].name === state.selectedVoice) {
+          utterance.voice = voices[i];
+          break;
+        }
+      }
+    }
+    function onTTSDone() {
+      _ttsSpeaking = false;
+      _pendingTranscript = '';
+      if (state.handsFree) {
+        hfSetPhase('cooldown');
+        setTimeout(function() {
+          _pendingTranscript = '';
+          hfSetPhase('listening');
+          startListening();
+        }, 1000);
+      }
+    }
+    utterance.onend = onTTSDone;
+    utterance.onerror = onTTSDone;
+    speechSynthesis.speak(utterance);
+  }
+
+  function populateVoiceSelect() {
+    var select = document.getElementById('voiceSelect');
+    var voices = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+    select.innerHTML = '';
+    var preferred = ['Google', 'Microsoft', 'Samantha', 'Daniel', 'Karen', 'Moira', 'Tessa', 'Fiona', 'en-'];
+    var sorted = voices.slice().sort(function(a, b) {
+      var aScore = 0, bScore = 0;
+      for (var p = 0; p < preferred.length; p++) {
+        if (a.name.indexOf(preferred[p]) !== -1 || a.lang.indexOf(preferred[p]) !== -1) aScore++;
+        if (b.name.indexOf(preferred[p]) !== -1 || b.lang.indexOf(preferred[p]) !== -1) bScore++;
+      }
+      if (a.localService && !b.localService) aScore++;
+      if (b.localService && !a.localService) bScore++;
+      return bScore - aScore;
+    });
+    var optDefault = document.createElement('option');
+    optDefault.value = '';
+    optDefault.textContent = '(Default browser voice)';
+    select.appendChild(optDefault);
+    for (var i = 0; i < sorted.length; i++) {
+      var v = sorted[i];
+      var opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = v.name + ' (' + v.lang + ')' + (v.localService ? '' : ' [network]');
+      if (state.selectedVoice === v.name) opt.selected = true;
+      select.appendChild(opt);
+    }
+  }
+
+  function populateAudioOutputs() {
+    var select = document.getElementById('audioOutputSelect');
+    if (!select) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      select.innerHTML = '<option value="">Default (no device selection available)</option>';
+      return;
+    }
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+      select.innerHTML = '';
+      var optDef = document.createElement('option');
+      optDef.value = '';
+      optDef.textContent = 'Default (system)';
+      select.appendChild(optDef);
+      for (var i = 0; i < devices.length; i++) {
+        if (devices[i].kind === 'audiooutput') {
+          var opt = document.createElement('option');
+          opt.value = devices[i].deviceId;
+          opt.textContent = devices[i].label || ('Speaker ' + (i + 1));
+          if (state.audioOutputId === devices[i].deviceId) opt.selected = true;
+          select.appendChild(opt);
+        }
+      }
+    }).catch(function() {
+      select.innerHTML = '<option value="">Default</option>';
+    });
+  }
+
+  var _ttsAudio = null;
+  function getTTSAudioElement() {
+    if (!_ttsAudio) {
+      _ttsAudio = document.createElement('audio');
+      _ttsAudio.style.display = 'none';
+      document.body.appendChild(_ttsAudio);
+    }
+    if (state.audioOutputId && typeof _ttsAudio.setSinkId === 'function') {
+      try { _ttsAudio.setSinkId(state.audioOutputId); } catch(e) { console.log('[mobile-chat] setSinkId error:', e); }
+    }
+    return _ttsAudio;
+  }
+
+  function toggleHandsFree() {
+    state.handsFree = !state.handsFree;
+    if (_hfSilenceTimer) { clearTimeout(_hfSilenceTimer); _hfSilenceTimer = null; }
+    stopListening();
+    initRecognition();
+    var btn = document.getElementById('btnHandsFree');
+    var banner = document.getElementById('hfBanner');
+    if (state.handsFree) {
+      btn.className = 'tb-btn active-green';
+      banner.className = 'hf-banner active';
+      state.speakerOn = true;
+      updateSpeakerButton();
+      hfSetPhase('listening');
+      startListening();
+      claimAudioFocus();
+      if (_silentAudio) _silentAudio.play().catch(function(){});
+      updateMediaPlaybackState('playing');
+      console.log('[hands-free] ON');
+    } else {
+      if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+      if (_hfSilenceTimer) { clearTimeout(_hfSilenceTimer); _hfSilenceTimer = null; }
+      btn.className = 'tb-btn';
+      banner.className = 'hf-banner';
+      hfSetPhase('idle');
+      _pendingTranscript = '';
+      _restartCount = 0;
+      releaseAudioFocus();
+      if (_silentAudio) { _silentAudio.pause(); _silentAudio.currentTime = 0; }
+      updateMediaPlaybackState('paused');
+      console.log('[hands-free] OFF');
+    }
+    saveSettings();
+  }
+
+  function claimAudioFocus() {
+    try {
+      if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+    } catch(e) {}
+  }
+
+  function releaseAudioFocus() {
+    try {
+      if (state.audioCtx) state.audioCtx.suspend();
+    } catch(e) {}
+  }
+
+  function autoResize() {
+    var ta = document.getElementById('chatInput');
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+  }
+
+  window.requestGPS = function() {
+    if (!navigator.geolocation) {
+      addSystemMessage('GPS not available on this device');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      state.gpsGranted = true;
+      document.getElementById('btnGPS').textContent = 'GPS Active';
+      document.getElementById('btnGPS').className = 'pc-btn granted';
+      var loc = 'My current GPS location: ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6) + ' (accuracy: ' + Math.round(pos.coords.accuracy) + 'm)';
+      sendMessage(loc);
+      document.getElementById('phoneCaps').classList.remove('open');
+    }, function(err) {
+      addSystemMessage('GPS error: ' + err.message);
+    }, { enableHighAccuracy: true });
+  };
+
+  window.requestCamera = function() {
+    document.getElementById('cameraInput').click();
+  };
+
+  window.requestSMS = function() {
+    var to = prompt('Phone number:');
+    if (!to) return;
+    var body = prompt('Message:');
+    if (body === null) return;
+    window.open('sms:' + encodeURIComponent(to) + '?body=' + encodeURIComponent(body));
+  };
+
+  function handleImageUpload(file, closeCaps) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      sendMessage('[File attached: ' + file.name + ' (' + Math.round(file.size/1024) + 'KB)]');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var dataUrl = e.target.result;
+      state.pendingImage = dataUrl;
+      var input = document.getElementById('chatInput');
+      input.placeholder = 'Image attached. Type a message or send to analyze...';
+      input.style.borderColor = '#3fb950';
+      addSystemMessage('Image attached (' + file.name + ', ' + Math.round(file.size/1024) + 'KB). Send a message to include it.');
+      if (closeCaps) document.getElementById('phoneCaps').classList.remove('open');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.getElementById('cameraInput').addEventListener('change', function(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    handleImageUpload(file, true);
+    ev.target.value = '';
+  });
+
+  document.getElementById('fileInput').addEventListener('change', function(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    handleImageUpload(file, false);
+    ev.target.value = '';
+  });
+
+  document.getElementById('btnUpload').addEventListener('click', function() {
+    document.getElementById('fileInput').click();
+  });
+
+  document.getElementById('btnMic').addEventListener('click', function() { toggleListening(); });
+  document.getElementById('btnSpeaker').addEventListener('click', function() { toggleSpeaker(); });
+  document.getElementById('btnHandsFree').addEventListener('click', function() { toggleHandsFree(); });
+
+  document.getElementById('btnVoiceSettings').addEventListener('click', function() {
+    populateVoiceSelect();
+    populateAudioOutputs();
+    document.getElementById('voiceSettings').classList.add('open');
+  });
+  document.getElementById('btnCloseVoice').addEventListener('click', function() {
+    document.getElementById('voiceSettings').classList.remove('open');
+  });
+  document.getElementById('btnCar').addEventListener('click', function() {
+    document.getElementById('carHelp').classList.add('open');
+  });
+  document.getElementById('btnPhone').addEventListener('click', function() {
+    document.getElementById('phoneCaps').classList.add('open');
+  });
+
+  document.getElementById('voiceSelect').addEventListener('change', function(ev) {
+    state.selectedVoice = ev.target.value || null;
+    saveSettings();
+  });
+  document.getElementById('audioOutputSelect').addEventListener('change', function(ev) {
+    state.audioOutputId = ev.target.value || '';
+    saveSettings();
+    getTTSAudioElement();
+  });
+  document.getElementById('speedSlider').addEventListener('input', function(ev) {
+    state.voiceSpeed = parseFloat(ev.target.value);
+    document.getElementById('speedVal').textContent = state.voiceSpeed.toFixed(1) + 'x';
+    saveSettings();
+  });
+  document.getElementById('pitchSlider').addEventListener('input', function(ev) {
+    state.voicePitch = parseFloat(ev.target.value);
+    document.getElementById('pitchVal').textContent = state.voicePitch.toFixed(1);
+    saveSettings();
+  });
+  document.getElementById('btnTestVoice').addEventListener('click', function() {
+    var savedSpeaker = state.speakerOn;
+    state.speakerOn = true;
+    speakText('Hello, I am your OpenClaw trading agent. This is how I sound at the current speed and pitch settings.');
+    state.speakerOn = savedSpeaker;
+  });
+
+  document.getElementById('btnSend').addEventListener('click', function() {
+    if (state.sending) { abortRun(); return; }
+    sendMessage(document.getElementById('chatInput').value);
+  });
+  document.getElementById('btnNew').addEventListener('click', function() { newSession(); });
+
+  document.getElementById('agentSelect').addEventListener('change', function(ev) {
+    state.sessionKey = ev.target.value;
+    saveSettings();
+    loadHistory();
+  });
+
+  var chatInput = document.getElementById('chatInput');
+  chatInput.addEventListener('input', autoResize);
+  chatInput.addEventListener('keydown', function(ev) {
+    if (ev.key === 'Enter' && !ev.shiftKey) {
+      ev.preventDefault();
+      if (state.sending) return;
+      sendMessage(chatInput.value);
+    }
+  });
+
+  loadSettings();
+  initRecognition();
+  gwConnect();
+
+  document.getElementById('speedSlider').value = state.voiceSpeed;
+  document.getElementById('speedVal').textContent = state.voiceSpeed.toFixed(1) + 'x';
+  document.getElementById('pitchSlider').value = state.voicePitch;
+  document.getElementById('pitchVal').textContent = state.voicePitch.toFixed(1);
+  if (state.speakerOn) updateSpeakerButton();
+
+  if (window.speechSynthesis) {
+    speechSynthesis.onvoiceschanged = function() { populateVoiceSelect(); };
+    setTimeout(function() { populateVoiceSelect(); }, 500);
+  }
+  populateAudioOutputs();
+  if (navigator.mediaDevices) {
+    navigator.mediaDevices.addEventListener('devicechange', populateAudioOutputs);
+  }
+
+  function initMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    _silentAudio = document.createElement('audio');
+    _silentAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    _silentAudio.loop = false;
+    _silentAudio.volume = 0.01;
+    updateMediaMetadata('OpenClaw Agent', 'Ready');
+    console.log('[media-session] initialized');
+
+    navigator.mediaSession.setActionHandler('play', function() {
+      if (!state.handsFree) toggleHandsFree();
+      if (_silentAudio) _silentAudio.play().catch(function(){});
+    });
+    navigator.mediaSession.setActionHandler('pause', function() {
+      if (state.handsFree) toggleHandsFree();
+    });
+    navigator.mediaSession.setActionHandler('nexttrack', function() {
+      var input = document.getElementById('chatInput');
+      var text = (input && input.value && input.value.trim()) || (_pendingTranscript && _pendingTranscript.trim());
+      if (text) {
+        sendMessage(text);
+        if (input) input.value = '';
+        _pendingTranscript = '';
+      }
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', function() {
+      toggleListening();
+    });
+    function cancelTTS() {
+      if (window.speechSynthesis && speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        _ttsSpeaking = false;
+        if (state.handsFree) {
+          hfSetPhase('listening');
+          setTimeout(function() { startListening(); }, 500);
+        }
+      }
+    }
+    navigator.mediaSession.setActionHandler('stop', cancelTTS);
+    navigator.mediaSession.setActionHandler('seekbackward', cancelTTS);
+    navigator.mediaSession.setActionHandler('seekforward', function() {
+      if (_lastAgentText) speakText(_lastAgentText);
+    });
+  }
+
+  function updateMediaMetadata(title, artist) {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: title || 'OpenClaw Agent',
+        artist: artist || 'Trading Assistant',
+        album: 'OpenClaw Mobile'
+      });
+    } catch(e) {}
+  }
+
+  function updateMediaPlaybackState(s) {
+    if (!('mediaSession' in navigator)) return;
+    try { navigator.mediaSession.playbackState = s; } catch(e) {}
+  }
+
+  initMediaSession();
+})();
+</script>
+<script src="/nav-inject.js"></script>
+</body>
+</html>
